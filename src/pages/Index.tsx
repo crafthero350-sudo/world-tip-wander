@@ -1,8 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Home, Plus } from "lucide-react";
+import { Home, Plus, User } from "lucide-react";
 import InsightCard from "@/components/InsightCard";
 import Minimap from "@/components/Minimap";
 import AddCardModal from "@/components/AddCardModal";
+import MyCollection from "@/components/MyCollection";
 import { cards as initialCards } from "@/data/cards";
 import type { InsightCardData } from "@/components/InsightCard";
 
@@ -22,8 +23,11 @@ const cardPositions = [
   { x: 220, y: 1850 },
 ];
 
+type View = "world" | "collection";
+
 const Index = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<View>("world");
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const [animating, setAnimating] = useState(false);
@@ -36,6 +40,7 @@ const Index = () => {
   const [cards, setCards] = useState<InsightCardData[]>(initialCards);
   const [positions, setPositions] = useState(cardPositions);
   const [showAddCard, setShowAddCard] = useState(false);
+  const [savedCardIds, setSavedCardIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const el = containerRef.current;
@@ -67,10 +72,7 @@ const Index = () => {
         setAnimating(false);
         return;
       }
-      setOffset((prev) => {
-        const next = clamp(prev.x + velocity.current.x, prev.y + velocity.current.y);
-        return next;
-      });
+      setOffset((prev) => clamp(prev.x + velocity.current.x, prev.y + velocity.current.y));
       animFrame.current = requestAnimationFrame(step);
     };
     setAnimating(true);
@@ -95,8 +97,8 @@ const Index = () => {
     const now = Date.now();
     const dt = Math.max(1, now - lastPointer.current.t);
     velocity.current = {
-      x: (e.clientX - lastPointer.current.x) / dt * 16,
-      y: (e.clientY - lastPointer.current.y) / dt * 16,
+      x: ((e.clientX - lastPointer.current.x) / dt) * 16,
+      y: ((e.clientY - lastPointer.current.y) / dt) * 16,
     };
     lastPointer.current = { x: e.clientX, y: e.clientY, t: now };
     setOffset(clamp(offsetStart.current.x + dx, offsetStart.current.y + dy));
@@ -114,20 +116,27 @@ const Index = () => {
     cancelAnimationFrame(animFrame.current);
     setAnimating(false);
     if (smooth) setAnimating(true);
-    const clamped = clamp(x, y);
-    setOffset(clamped);
+    setOffset(clamp(x, y));
     if (smooth) setTimeout(() => setAnimating(false), 500);
   };
 
   const goHome = () => navigateTo(0, 0);
 
-  // Center position for hero text
   const heroCenterX = WORLD_WIDTH / 2 - 180;
   const heroCenterY = 80;
 
+  const toggleSaveCard = (card: InsightCardData) => {
+    setSavedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(card.id)) next.delete(card.id);
+      else next.add(card.id);
+      return next;
+    });
+  };
+
   const handleSaveCard = (data: { title: string; subtitle: string; color: string; category: string }) => {
     const newCard: InsightCardData = {
-      id: String(cards.length + 1),
+      id: String(Date.now()),
       title: data.title,
       subtitle: data.subtitle,
       author: "You",
@@ -141,7 +150,31 @@ const Index = () => {
     };
     setCards((prev) => [...prev, newCard]);
     setPositions((prev) => [...prev, newPos]);
+    // Auto-save to collection
+    setSavedCardIds((prev) => new Set(prev).add(newCard.id));
   };
+
+  const savedCards = cards.filter((c) => savedCardIds.has(c.id));
+
+  if (view === "collection") {
+    return (
+      <div className="min-h-screen bg-background flex justify-center overflow-hidden">
+        <div className="w-full max-w-md relative">
+          <MyCollection
+            savedCards={savedCards}
+            onBack={() => setView("world")}
+            onAddNew={() => setShowAddCard(true)}
+            onToggleSave={toggleSaveCard}
+          />
+          <AddCardModal
+            open={showAddCard}
+            onClose={() => setShowAddCard(false)}
+            onSave={handleSaveCard}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex justify-center overflow-hidden">
@@ -164,7 +197,12 @@ const Index = () => {
             width: WORLD_WIDTH,
             height: WORLD_HEIGHT,
             transform: `translate(${offset.x}px, ${offset.y}px)`,
-            transition: !dragging && animating ? "none" : !dragging ? "transform 0.4s cubic-bezier(0.25,1,0.5,1)" : "none",
+            transition:
+              !dragging && animating
+                ? "none"
+                : !dragging
+                ? "transform 0.4s cubic-bezier(0.25,1,0.5,1)"
+                : "none",
             cursor: dragging ? "grabbing" : "grab",
           }}
           onPointerDown={handlePointerDown}
@@ -195,7 +233,11 @@ const Index = () => {
                 className="absolute"
                 style={{ left: pos.x, top: pos.y, width: 170 }}
               >
-                <InsightCard card={card} />
+                <InsightCard
+                  card={card}
+                  isSaved={savedCardIds.has(card.id)}
+                  onToggleSave={toggleSaveCard}
+                />
               </div>
             );
           })}
@@ -228,11 +270,17 @@ const Index = () => {
             <span className="text-sm font-semibold">Home</span>
           </button>
           <button
+            onClick={() => setView("collection")}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-primary-foreground shadow-lg active:scale-95 transition-transform"
+          >
+            <User className="w-4 h-4" />
+            <span className="text-sm font-semibold">My Cards</span>
+          </button>
+          <button
             onClick={() => setShowAddCard(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-accent text-accent-foreground shadow-lg active:scale-95 transition-transform"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-accent-foreground shadow-lg active:scale-95 transition-transform"
           >
             <Plus className="w-4 h-4" />
-            <span className="text-sm font-semibold">Add</span>
           </button>
         </div>
 
