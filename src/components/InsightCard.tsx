@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Bookmark, BookmarkCheck, ImagePlus } from "lucide-react";
 import { playOpenSound, playCloseSound, playNavSound, playSaveSound } from "@/lib/sounds";
 
@@ -141,29 +142,25 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   };
 
   if (isOpen) {
-    return (
+    return createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={handleClose}>
         <div
           className="w-full max-w-sm rounded-3xl relative animate-scale-in overflow-hidden"
           style={{ minHeight: 480 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Background image */}
           <div
             className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${readingBg})` }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
 
-          {/* Content overlay */}
           <div className="relative z-10 p-6 flex flex-col min-h-[480px]">
-            {/* Top actions */}
             <div className="flex items-center justify-between mb-6">
               <button onClick={handleClose} className="p-2 rounded-full bg-black/20 backdrop-blur-sm">
                 <X className="w-5 h-5 text-white" />
               </button>
               <div className="flex items-center gap-2">
-                {/* Only show background change button for owned cards */}
                 {isOwned && (
                   <label className="p-2 rounded-full bg-black/20 backdrop-blur-sm cursor-pointer">
                     <ImagePlus className="w-5 h-5 text-white" />
@@ -176,10 +173,8 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
               </div>
             </div>
 
-            {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Text content */}
             <div className="space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-white drop-shadow-lg leading-tight">{card.title}</h2>
@@ -214,7 +209,8 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
