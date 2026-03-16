@@ -51,7 +51,7 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-3xl bg-background shadow-2xl overflow-hidden"
+        className="w-full max-w-sm rounded-3xl bg-background shadow-2xl overflow-hidden animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -74,13 +74,13 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
           >
             <input
               type="text"
-              placeholder="عنوان البطاقة"
+              placeholder="Card title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="bg-transparent text-card-foreground font-bold text-lg placeholder:text-card-foreground/40 outline-none w-full"
             />
             <textarea
-              placeholder="أضف نصًا إلى هذه الملاحظة"
+              placeholder="Add text to this note"
               value={subtitle}
               onChange={(e) => setSubtitle(e.target.value)}
               className="bg-transparent text-card-foreground/70 text-sm placeholder:text-card-foreground/40 outline-none w-full flex-1 resize-none min-h-[80px]"
