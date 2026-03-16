@@ -13,16 +13,22 @@ const WORLD_HEIGHT = 3200;
 
 const SHAPES: InsightCardData["shape"][] = ["circle", "chevron", "ring", "slash", "wave", "triangle"];
 
-const cardPositions = [
-  { x: 40, y: 620 },
-  { x: 220, y: 540 },
-  { x: 40, y: 1050 },
-  { x: 220, y: 980 },
-  { x: 100, y: 1450 },
-  { x: 280, y: 1400 },
-  { x: 40, y: 1900 },
-  { x: 220, y: 1850 },
-];
+// Generate random positions spread across the world
+function generateRandomPositions(count: number): { x: number; y: number }[] {
+  const cols = 2;
+  const result: { x: number; y: number }[] = [];
+  for (let i = 0; i < count; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    result.push({
+      x: 30 + col * 200 + Math.floor(Math.random() * 60),
+      y: 500 + row * 420 + Math.floor(Math.random() * 80),
+    });
+  }
+  return result;
+}
+
+const cardPositions = generateRandomPositions(8);
 
 type View = "world" | "collection";
 
