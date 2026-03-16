@@ -6,9 +6,6 @@ import {
   List,
   Quote,
   Smile,
-  Bold,
-  Italic,
-  Strikethrough,
   Plus,
 } from "lucide-react";
 import data from "@emoji-mart/data";
@@ -39,8 +36,8 @@ interface BlockEditorProps {
 const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
   const [showBlockMenu, setShowBlockMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const inputRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [activeBlockIdx, setActiveBlockIdx] = useState(0);
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   const updateBlock = useCallback(
     (id: string, updates: Partial<Block>) => {
@@ -55,7 +52,7 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
       onChange([...blocks, newBlock]);
       setShowBlockMenu(false);
       setTimeout(() => {
-        const el = inputRefs.current.get(newBlock.id);
+        const el = textareaRefs.current.get(newBlock.id);
         if (el) el.focus();
       }, 50);
     },
@@ -82,16 +79,9 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
   };
 
   const insertEmoji = (emoji: any) => {
-    if (!activeBlockId) {
-      // Insert into last block
-      const lastBlock = blocks[blocks.length - 1];
-      if (lastBlock) {
-        updateBlock(lastBlock.id, { content: lastBlock.content + emoji.native });
-      }
-    } else {
-      updateBlock(activeBlockId, {
-        content: (blocks.find((b) => b.id === activeBlockId)?.content || "") + emoji.native,
-      });
+    const targetBlock = blocks[activeBlockIdx] || blocks[blocks.length - 1];
+    if (targetBlock) {
+      updateBlock(targetBlock.id, { content: targetBlock.content + emoji.native });
     }
     setShowEmojiPicker(false);
   };
@@ -103,7 +93,7 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
       case "h2":
         return "text-lg font-semibold";
       case "bullet":
-        return "text-sm pl-4";
+        return "text-sm";
       case "quote":
         return "text-sm italic border-l-2 border-card-foreground/30 pl-3";
       default:
@@ -111,39 +101,47 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
     }
   };
 
+  const getPlaceholder = (type: BlockType): string => {
+    switch (type) {
+      case "h1": return "Heading";
+      case "h2": return "Subheading";
+      case "quote": return "Write a quote...";
+      default: return "Type something...";
+    }
+  };
+
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+
   return (
     <div className="flex flex-col gap-1 min-h-[100px]">
-      {blocks.map((block) => (
+      {blocks.map((block, idx) => (
         <div key={block.id} className="group flex items-start gap-1">
           {block.type === "bullet" && (
-            <span className="text-card-foreground/60 mt-0.5 text-sm">•</span>
+            <span className="text-card-foreground/60 mt-1 text-sm">•</span>
           )}
-          <div
+          <textarea
             ref={(el) => {
-              if (el) inputRefs.current.set(block.id, el);
+              if (el) {
+                textareaRefs.current.set(block.id, el);
+                // Auto-resize on mount
+                el.style.height = "auto";
+                el.style.height = el.scrollHeight + "px";
+              }
             }}
-            contentEditable
-            suppressContentEditableWarning
-            data-placeholder={
-              block.type === "h1"
-                ? "Heading"
-                : block.type === "h2"
-                ? "Subheading"
-                : block.type === "quote"
-                ? "Write a quote..."
-                : "Type something..."
-            }
-            className={`flex-1 outline-none text-card-foreground empty:before:content-[attr(data-placeholder)] empty:before:text-card-foreground/30 ${getBlockStyles(
-              block.type
-            )}`}
-            onInput={(e) =>
-              updateBlock(block.id, { content: e.currentTarget.textContent || "" })
-            }
-            onFocus={() => setActiveBlockId(block.id)}
+            value={block.content}
+            placeholder={getPlaceholder(block.type)}
+            onChange={(e) => {
+              updateBlock(block.id, { content: e.target.value });
+              autoResize(e.target);
+            }}
+            onFocus={() => setActiveBlockIdx(idx)}
             onKeyDown={(e) => handleKeyDown(e, block)}
-          >
-            {block.content}
-          </div>
+            rows={1}
+            className={`flex-1 bg-transparent outline-none text-card-foreground placeholder:text-card-foreground/30 resize-none overflow-hidden ${getBlockStyles(block.type)}`}
+          />
         </div>
       ))}
 
@@ -151,6 +149,7 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
       <div className="flex items-center gap-1 mt-2 pt-2 border-t border-card-foreground/10">
         <div className="relative">
           <button
+            type="button"
             onClick={() => {
               setShowBlockMenu(!showBlockMenu);
               setShowEmojiPicker(false);
@@ -165,6 +164,7 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
               {BLOCK_MENU.map((item) => (
                 <button
                   key={item.type}
+                  type="button"
                   onClick={() => addBlock(item.type)}
                   className="flex items-center gap-2 w-full px-3 py-2 text-xs text-foreground hover:bg-muted rounded-lg transition-colors"
                 >
@@ -178,6 +178,7 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
 
         <div className="relative">
           <button
+            type="button"
             onClick={() => {
               setShowEmojiPicker(!showEmojiPicker);
               setShowBlockMenu(false);
@@ -205,9 +206,11 @@ const BlockEditor = ({ blocks, onChange, accentColor }: BlockEditorProps) => {
         {BLOCK_MENU.slice(0, 4).map((item) => (
           <button
             key={item.type}
+            type="button"
             onClick={() => {
-              if (activeBlockId) {
-                updateBlock(activeBlockId, { type: item.type });
+              const targetBlock = blocks[activeBlockIdx];
+              if (targetBlock) {
+                updateBlock(targetBlock.id, { type: item.type });
               }
             }}
             className="p-1.5 rounded-lg bg-card-foreground/5 hover:bg-card-foreground/10 transition-colors"
