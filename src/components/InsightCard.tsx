@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChevronLeft, X, Bookmark, BookmarkCheck, ImagePlus } from "lucide-react";
+import { X, Bookmark, BookmarkCheck, ImagePlus } from "lucide-react";
 import { playOpenSound, playCloseSound, playNavSound, playSaveSound } from "@/lib/sounds";
 
 import bgOcean from "@/assets/card-bg-ocean.jpg";
@@ -19,8 +19,8 @@ export interface InsightCardData {
   color: string;
   shape: "circle" | "chevron" | "ring" | "slash" | "wave" | "triangle";
   tips: string[];
-  backgroundImage?: string; // custom user-uploaded background
-  bgIndex?: number; // index into CARD_BACKGROUNDS
+  backgroundImage?: string;
+  bgIndex?: number;
 }
 
 const ShapeIcon = ({ shape }: { shape: string }) => {
@@ -104,10 +104,10 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   const { ref, inView } = useInView(0.2);
   const [customBg, setCustomBg] = useState<string | null>(card.backgroundImage || null);
 
-  // Determine background image for reading view
   const bgIdx = card.bgIndex ?? (parseInt(card.id) % CARD_BACKGROUNDS.length);
   const readingBg = customBg || CARD_BACKGROUNDS[bgIdx] || bgOcean;
-  const isDarkBg = !customBg && [0, 4].includes(bgIdx); // ocean and night are dark
+
+  const isOwned = card.author === "You";
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -141,10 +141,6 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   };
 
   if (isOpen) {
-    const textColor = isDarkBg && !customBg ? "text-white" : "text-card-foreground";
-    const subTextColor = isDarkBg && !customBg ? "text-white/70" : "text-card-foreground/70";
-    const mutedColor = isDarkBg && !customBg ? "text-white/50" : "text-card-foreground/50";
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={handleClose}>
         <div
@@ -167,20 +163,23 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
                 <X className="w-5 h-5 text-white" />
               </button>
               <div className="flex items-center gap-2">
-                <label className="p-2 rounded-full bg-black/20 backdrop-blur-sm cursor-pointer">
-                  <ImagePlus className="w-5 h-5 text-white" />
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                </label>
+                {/* Only show background change button for owned cards */}
+                {isOwned && (
+                  <label className="p-2 rounded-full bg-black/20 backdrop-blur-sm cursor-pointer">
+                    <ImagePlus className="w-5 h-5 text-white" />
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  </label>
+                )}
                 <button onClick={handleSave} className="p-2 rounded-full bg-black/20 backdrop-blur-sm">
                   {saved ? <BookmarkCheck className="w-5 h-5 text-white" /> : <Bookmark className="w-5 h-5 text-white" />}
                 </button>
               </div>
             </div>
 
-            {/* Spacer to push text down like reference images */}
+            {/* Spacer */}
             <div className="flex-1" />
 
-            {/* Text content - positioned like a poem/quote overlay */}
+            {/* Text content */}
             <div className="space-y-4">
               <div>
                 <h2 className="text-2xl font-bold text-white drop-shadow-lg leading-tight">{card.title}</h2>

@@ -349,9 +349,14 @@ const Index = () => {
           </button>
           <button
             onClick={() => { setView("collection"); playNavSound(); }}
-            className="p-3 rounded-full bg-foreground text-primary-foreground shadow-lg active:scale-95 transition-transform"
+            className="relative p-3 rounded-full bg-foreground text-primary-foreground shadow-lg active:scale-95 transition-transform"
           >
             <User className="w-4 h-4" />
+            {savedCardIds.size > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-accent text-accent-foreground text-[10px] font-bold px-1">
+                {savedCardIds.size}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setShowAddCard(true)}
