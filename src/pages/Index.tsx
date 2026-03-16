@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Home, Plus, User } from "lucide-react";
 import InsightCard from "@/components/InsightCard";
 import Minimap from "@/components/Minimap";
@@ -8,27 +8,34 @@ import { cards as initialCards } from "@/data/cards";
 import type { InsightCardData } from "@/components/InsightCard";
 import { playNavSound } from "@/lib/sounds";
 
-const WORLD_WIDTH = 2400;
-const WORLD_HEIGHT = 3200;
+const BASE_WORLD_WIDTH = 2400;
+const BASE_WORLD_HEIGHT = 2000;
+const CARDS_PER_EXPANSION = 4;
+const EXPANSION_HEIGHT = 800;
 
 const SHAPES: InsightCardData["shape"][] = ["circle", "chevron", "ring", "slash", "wave", "triangle"];
 
-// Generate random positions spread across the world
-function generateRandomPositions(count: number): { x: number; y: number }[] {
-  const cols = 2;
+// Hero text position constants
+const HERO_WIDTH = 360;
+const HERO_Y = 80;
+
+// Generate positions clustered around the hero text area
+function generatePositionsNearHero(count: number, worldWidth: number): { x: number; y: number }[] {
+  const heroX = worldWidth / 2 - HERO_WIDTH / 2;
   const result: { x: number; y: number }[] = [];
+  const cols = 2;
+  const startY = 350; // Just below hero text
+
   for (let i = 0; i < count; i++) {
     const col = i % cols;
     const row = Math.floor(i / cols);
     result.push({
-      x: 30 + col * 200 + Math.floor(Math.random() * 60),
-      y: 500 + row * 420 + Math.floor(Math.random() * 80),
+      x: heroX + col * 200 + Math.floor(Math.random() * 40) - 20,
+      y: startY + row * 380 + Math.floor(Math.random() * 60),
     });
   }
   return result;
 }
-
-const cardPositions = generateRandomPositions(8);
 
 type View = "world" | "collection";
 
@@ -45,9 +52,18 @@ const Index = () => {
   const animFrame = useRef<number>(0);
   const [containerSize, setContainerSize] = useState({ w: 390, h: 800 });
   const [cards, setCards] = useState<InsightCardData[]>(initialCards);
-  const [positions, setPositions] = useState(cardPositions);
+  const [positions, setPositions] = useState(() => generatePositionsNearHero(initialCards.length, BASE_WORLD_WIDTH));
   const [showAddCard, setShowAddCard] = useState(false);
   const [savedCardIds, setSavedCardIds] = useState<Set<string>>(new Set());
+
+  // Dynamic world size based on card count
+  const worldSize = useMemo(() => {
+    const extraSets = Math.max(0, Math.floor((cards.length - 8) / CARDS_PER_EXPANSION));
+    return {
+      w: BASE_WORLD_WIDTH,
+      h: BASE_WORLD_HEIGHT + extraSets * EXPANSION_HEIGHT,
+    };
+  }, [cards.length]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -60,14 +76,14 @@ const Index = () => {
 
   const clamp = useCallback(
     (x: number, y: number) => {
-      const minX = -(WORLD_WIDTH - containerSize.w);
-      const minY = -(WORLD_HEIGHT - containerSize.h);
+      const minX = -(worldSize.w - containerSize.w);
+      const minY = -(worldSize.h - containerSize.h);
       return {
         x: Math.max(minX, Math.min(0, x)),
         y: Math.max(minY, Math.min(0, y)),
       };
     },
-    [containerSize]
+    [containerSize, worldSize]
   );
 
   const startInertia = useCallback(() => {
@@ -127,14 +143,12 @@ const Index = () => {
     if (smooth) setTimeout(() => setAnimating(false), 500);
   };
 
-  // Hero text is centered in world — compute offset to center it in viewport
-  const heroTextWorldX = WORLD_WIDTH / 2 - 180;
-  const heroTextWorldY = 80;
+  // Hero text position in world
+  const heroTextWorldX = worldSize.w / 2 - HERO_WIDTH / 2;
 
   const goHome = () => {
-    // Center the hero text block (360px wide, ~300px tall) in the viewport
-    const targetX = -(heroTextWorldX - (containerSize.w - 360) / 2);
-    const targetY = -(heroTextWorldY - 40); // small top padding
+    const targetX = -(heroTextWorldX - (containerSize.w - HERO_WIDTH) / 2);
+    const targetY = -(HERO_Y - 40);
     navigateTo(targetX, targetY);
     playNavSound();
   };
@@ -158,9 +172,11 @@ const Index = () => {
       shape: SHAPES[Math.floor(Math.random() * SHAPES.length)],
       tips: [data.subtitle || "A new insight to explore."],
     };
+    // Position near the hero area
+    const maxY = positions.length > 0 ? Math.max(...positions.map((p) => p.y)) : 350;
     const newPos = {
-      x: 40 + Math.random() * (containerSize.w - 220),
-      y: Math.max(...positions.map((p) => p.y)) + 200 + Math.random() * 200,
+      x: heroTextWorldX + Math.random() * 200 - 20,
+      y: maxY + 200 + Math.random() * 180,
     };
     setCards((prev) => [...prev, newCard]);
     setPositions((prev) => [...prev, newPos]);
@@ -194,8 +210,8 @@ const Index = () => {
       <div className="w-full max-w-md relative h-screen overflow-hidden" ref={containerRef}>
         {/* Minimap */}
         <Minimap
-          worldWidth={WORLD_WIDTH}
-          worldHeight={WORLD_HEIGHT}
+          worldWidth={worldSize.w}
+          worldHeight={worldSize.h}
           viewportWidth={containerSize.w}
           viewportHeight={containerSize.h}
           offsetX={offset.x}
@@ -203,10 +219,9 @@ const Index = () => {
           onNavigate={(x, y) => navigateTo(x, y)}
           savedMarkers={cards
             .filter((c) => savedCardIds.has(c.id))
-            .map((c, ci) => {
+            .map((c) => {
               const idx = cards.indexOf(c);
-              const pos = positions[idx];
-              return pos || { x: 0, y: 0 };
+              return positions[idx] || { x: 0, y: 0 };
             })}
         />
 
@@ -214,8 +229,8 @@ const Index = () => {
         <div
           className="absolute touch-none select-none"
           style={{
-            width: WORLD_WIDTH,
-            height: WORLD_HEIGHT,
+            width: worldSize.w,
+            height: worldSize.h,
             transform: `translate(${offset.x}px, ${offset.y}px)`,
             transition:
               !dragging && animating
@@ -233,7 +248,7 @@ const Index = () => {
           {/* Hero text centered */}
           <div
             className="absolute flex flex-col items-center text-center"
-            style={{ left: heroTextWorldX, top: heroTextWorldY, width: 360 }}
+            style={{ left: heroTextWorldX, top: HERO_Y, width: HERO_WIDTH }}
           >
             <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight text-foreground">
               Exploring<br />Minds
@@ -268,9 +283,8 @@ const Index = () => {
             { x: 350, y: 400, s: 12 },
             { x: 200, y: 1200, s: 6 },
             { x: 380, y: 900, s: 10 },
-            { x: 100, y: 2200, s: 8 },
-            { x: 320, y: 1700, s: 14 },
-            { x: 180, y: 2600, s: 10 },
+            { x: 100, y: 1600, s: 8 },
+            { x: 320, y: 1400, s: 14 },
           ].map((d, i) => (
             <div
               key={`d-${i}`}
