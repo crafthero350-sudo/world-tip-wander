@@ -79,7 +79,7 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
           <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 p-1 rounded-full bg-foreground/10">
             <X className="w-5 h-5 text-card-foreground" />
           </button>
-          <button onClick={() => setSaved(!saved)} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
+          <button onClick={() => onToggleSave?.(card)} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
             {saved ? <BookmarkCheck className="w-5 h-5 text-card-foreground" /> : <Bookmark className="w-5 h-5 text-card-foreground" />}
           </button>
 
