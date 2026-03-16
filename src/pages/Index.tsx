@@ -6,6 +6,7 @@ import AddCardModal from "@/components/AddCardModal";
 import MyCollection from "@/components/MyCollection";
 import { cards as initialCards } from "@/data/cards";
 import type { InsightCardData } from "@/components/InsightCard";
+import { playNavSound } from "@/lib/sounds";
 
 const WORLD_WIDTH = 2400;
 const WORLD_HEIGHT = 3200;
@@ -120,10 +121,17 @@ const Index = () => {
     if (smooth) setTimeout(() => setAnimating(false), 500);
   };
 
-  const goHome = () => navigateTo(0, 0);
+  // Hero text is centered in world — compute offset to center it in viewport
+  const heroTextWorldX = WORLD_WIDTH / 2 - 180;
+  const heroTextWorldY = 80;
 
-  const heroCenterX = WORLD_WIDTH / 2 - 180;
-  const heroCenterY = 80;
+  const goHome = () => {
+    // Center the hero text block (360px wide, ~300px tall) in the viewport
+    const targetX = -(heroTextWorldX - (containerSize.w - 360) / 2);
+    const targetY = -(heroTextWorldY - 40); // small top padding
+    navigateTo(targetX, targetY);
+    playNavSound();
+  };
 
   const toggleSaveCard = (card: InsightCardData) => {
     setSavedCardIds((prev) => {
@@ -150,7 +158,6 @@ const Index = () => {
     };
     setCards((prev) => [...prev, newCard]);
     setPositions((prev) => [...prev, newPos]);
-    // Auto-save to collection
     setSavedCardIds((prev) => new Set(prev).add(newCard.id));
   };
 
@@ -162,7 +169,7 @@ const Index = () => {
         <div className="w-full max-w-md relative">
           <MyCollection
             savedCards={savedCards}
-            onBack={() => setView("world")}
+            onBack={() => { setView("world"); playNavSound(); }}
             onAddNew={() => setShowAddCard(true)}
             onToggleSave={toggleSaveCard}
           />
@@ -213,7 +220,7 @@ const Index = () => {
           {/* Hero text centered */}
           <div
             className="absolute flex flex-col items-center text-center"
-            style={{ left: heroCenterX, top: heroCenterY, width: 360 }}
+            style={{ left: heroTextWorldX, top: heroTextWorldY, width: 360 }}
           >
             <h1 className="text-5xl font-extrabold leading-[1.05] tracking-tight text-foreground">
               Exploring<br />Minds
@@ -270,15 +277,14 @@ const Index = () => {
             <span className="text-sm font-semibold">Home</span>
           </button>
           <button
-            onClick={() => setView("collection")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-foreground text-primary-foreground shadow-lg active:scale-95 transition-transform"
+            onClick={() => { setView("collection"); playNavSound(); }}
+            className="p-3 rounded-full bg-foreground text-primary-foreground shadow-lg active:scale-95 transition-transform"
           >
             <User className="w-4 h-4" />
-            <span className="text-sm font-semibold">My Cards</span>
           </button>
           <button
             onClick={() => setShowAddCard(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-accent-foreground shadow-lg active:scale-95 transition-transform"
+            className="p-3 rounded-full bg-accent text-accent-foreground shadow-lg active:scale-95 transition-transform"
           >
             <Plus className="w-4 h-4" />
           </button>

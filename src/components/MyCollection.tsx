@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Search, Plus, ChevronLeft, ArrowUpDown } from "lucide-react";
+import { useState, useRef } from "react";
+import { Search, Plus, ChevronLeft, ArrowUpDown, Trash2 } from "lucide-react";
 import InsightCard, { type InsightCardData } from "@/components/InsightCard";
+import { playDeleteSound } from "@/lib/sounds";
 
 interface MyCollectionProps {
   savedCards: InsightCardData[];
@@ -8,6 +9,83 @@ interface MyCollectionProps {
   onAddNew: () => void;
   onToggleSave: (card: InsightCardData) => void;
 }
+
+const SwipeableCard = ({
+  card,
+  onDelete,
+  onToggleSave,
+}: {
+  card: InsightCardData;
+  onDelete: (card: InsightCardData) => void;
+  onToggleSave: (card: InsightCardData) => void;
+}) => {
+  const [offsetX, setOffsetX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const locked = useRef(false);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    startY.current = e.touches[0].clientY;
+    locked.current = false;
+    setSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swiping) return;
+    const dx = e.touches[0].clientX - startX.current;
+    const dy = e.touches[0].clientY - startY.current;
+    // Lock direction on first significant move
+    if (!locked.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+      locked.current = true;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        setSwiping(false);
+        return;
+      }
+    }
+    if (dx < 0) setOffsetX(dx);
+  };
+
+  const handleTouchEnd = () => {
+    setSwiping(false);
+    if (offsetX < -80) {
+      setOffsetX(-120);
+    } else {
+      setOffsetX(0);
+    }
+  };
+
+  const handleDelete = () => {
+    playDeleteSound();
+    onDelete(card);
+  };
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl">
+      {/* Delete background */}
+      <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive rounded-2xl">
+        <button onClick={handleDelete} className="flex flex-col items-center gap-1">
+          <Trash2 className="w-5 h-5 text-destructive-foreground" />
+          <span className="text-[10px] text-destructive-foreground font-medium">Delete</span>
+        </button>
+      </div>
+      {/* Card content */}
+      <div
+        className="relative z-10"
+        style={{
+          transform: `translateX(${offsetX}px)`,
+          transition: swiping ? "none" : "transform 0.3s ease-out",
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <InsightCard card={card} isSaved={true} onToggleSave={onToggleSave} />
+      </div>
+    </div>
+  );
+};
 
 const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollectionProps) => {
   const [search, setSearch] = useState("");
@@ -43,7 +121,7 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
           <Search className="w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="I need..."
+            placeholder="Search cards..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
@@ -70,10 +148,10 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((card) => (
-              <InsightCard
+              <SwipeableCard
                 key={card.id}
                 card={card}
-                isSaved={true}
+                onDelete={(c) => onToggleSave(c)}
                 onToggleSave={onToggleSave}
               />
             ))}

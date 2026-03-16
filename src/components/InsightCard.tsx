@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, X, Bookmark, BookmarkCheck } from "lucide-react";
+import { playOpenSound, playCloseSound, playNavSound, playSaveSound } from "@/lib/sounds";
 
 export interface InsightCardData {
   id: string;
@@ -11,8 +12,7 @@ export interface InsightCardData {
   tips: string[];
 }
 
-const ShapeIcon = ({ shape, color }: { shape: string; color: string }) => {
-  const darker = color.replace(/\/[0-9.]+\)/, "/0.6)");
+const ShapeIcon = ({ shape }: { shape: string }) => {
   switch (shape) {
     case "chevron":
       return (
@@ -57,6 +57,30 @@ const ShapeIcon = ({ shape, color }: { shape: string; color: string }) => {
   }
 };
 
+// Viewport animation hook
+const useInView = (threshold = 0.3) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          obs.disconnect();
+        }
+      },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+
+  return { ref, inView };
+};
+
 interface Props {
   card: InsightCardData;
   isSaved?: boolean;
@@ -67,19 +91,41 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
   const saved = isSaved ?? false;
   const [tipIndex, setTipIndex] = useState(0);
+  const { ref, inView } = useInView(0.2);
+
+  const handleOpen = () => {
+    setIsOpen(true);
+    setTipIndex(0);
+    playOpenSound();
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    playCloseSound();
+  };
+
+  const handleSave = () => {
+    onToggleSave?.(card);
+    playSaveSound();
+  };
+
+  const handleNav = (dir: number) => {
+    setTipIndex((prev) => prev + dir);
+    playNavSound();
+  };
 
   if (isOpen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={() => setIsOpen(false)}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4" onClick={handleClose}>
         <div
-          className="w-full max-w-sm rounded-2xl p-6 relative"
+          className="w-full max-w-sm rounded-2xl p-6 relative animate-scale-in"
           style={{ backgroundColor: `hsl(var(--${card.color}))` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 p-1 rounded-full bg-foreground/10">
+          <button onClick={handleClose} className="absolute top-4 right-4 p-1 rounded-full bg-foreground/10">
             <X className="w-5 h-5 text-card-foreground" />
           </button>
-          <button onClick={() => onToggleSave?.(card)} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
+          <button onClick={handleSave} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
             {saved ? <BookmarkCheck className="w-5 h-5 text-card-foreground" /> : <Bookmark className="w-5 h-5 text-card-foreground" />}
           </button>
 
@@ -93,7 +139,7 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
 
           <div className="flex items-center justify-between mt-4">
             <button
-              onClick={() => setTipIndex(Math.max(0, tipIndex - 1))}
+              onClick={() => handleNav(-1)}
               disabled={tipIndex === 0}
               className="px-3 py-1.5 rounded-lg bg-foreground/10 text-card-foreground text-sm disabled:opacity-30"
             >
@@ -101,7 +147,7 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
             </button>
             <span className="text-xs text-card-foreground/60">{tipIndex + 1} / {card.tips.length}</span>
             <button
-              onClick={() => setTipIndex(Math.min(card.tips.length - 1, tipIndex + 1))}
+              onClick={() => handleNav(1)}
               disabled={tipIndex === card.tips.length - 1}
               className="px-3 py-1.5 rounded-lg bg-foreground/10 text-card-foreground text-sm disabled:opacity-30"
             >
@@ -114,20 +160,25 @@ const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   }
 
   return (
-    <button
-      onClick={() => { setIsOpen(true); setTipIndex(0); }}
-      className="rounded-2xl p-4 text-left flex flex-col justify-between aspect-[4/5] transition-transform active:scale-95"
-      style={{ backgroundColor: `hsl(var(--${card.color}))` }}
+    <div
+      ref={ref}
+      className={`transition-all duration-500 ${inView ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-4 scale-95"}`}
     >
-      <div>
-        <h3 className="text-base font-bold text-card-foreground leading-tight">{card.title}</h3>
-        <p className="text-sm text-card-foreground/70">{card.subtitle}</p>
-      </div>
-      <div className="flex-1 flex items-center justify-center">
-        <ShapeIcon shape={card.shape} color={`hsl(var(--${card.color}))`} />
-      </div>
-      <p className="text-xs text-card-foreground/50">{card.author}</p>
-    </button>
+      <button
+        onClick={handleOpen}
+        className="rounded-2xl p-4 text-left flex flex-col justify-between aspect-[4/5] transition-transform active:scale-95 w-full"
+        style={{ backgroundColor: `hsl(var(--${card.color}))` }}
+      >
+        <div>
+          <h3 className="text-base font-bold text-card-foreground leading-tight">{card.title}</h3>
+          <p className="text-sm text-card-foreground/70">{card.subtitle}</p>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <ShapeIcon shape={card.shape} />
+        </div>
+        <p className="text-xs text-card-foreground/50">{card.author}</p>
+      </button>
+    </div>
   );
 };
 
