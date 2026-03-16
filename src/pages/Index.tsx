@@ -201,6 +201,13 @@ const Index = () => {
           offsetX={offset.x}
           offsetY={offset.y}
           onNavigate={(x, y) => navigateTo(x, y)}
+          savedMarkers={cards
+            .filter((c) => savedCardIds.has(c.id))
+            .map((c, ci) => {
+              const idx = cards.indexOf(c);
+              const pos = positions[idx];
+              return pos || { x: 0, y: 0 };
+            })}
         />
 
         {/* Pannable world */}
