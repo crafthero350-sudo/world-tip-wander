@@ -59,11 +59,13 @@ const ShapeIcon = ({ shape, color }: { shape: string; color: string }) => {
 
 interface Props {
   card: InsightCardData;
+  isSaved?: boolean;
+  onToggleSave?: (card: InsightCardData) => void;
 }
 
-const InsightCard = ({ card }: Props) => {
+const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const saved = isSaved ?? false;
   const [tipIndex, setTipIndex] = useState(0);
 
   if (isOpen) {
