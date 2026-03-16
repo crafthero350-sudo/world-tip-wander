@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronLeft, X, Link2, Share2, PenLine, Check } from "lucide-react";
+import BlockEditor, { type Block } from "./BlockEditor";
 
 const NOTE_COLORS = [
   { name: "yellow", hsl: "52 100% 70%", var: "card-yellow" },
@@ -19,27 +20,32 @@ interface AddCardModalProps {
     subtitle: string;
     color: string;
     category: string;
+    blocks?: Block[];
   }) => void;
 }
 
 const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
   const [title, setTitle] = useState("");
-  const [subtitle, setSubtitle] = useState("");
   const [selectedColor, setSelectedColor] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [blocks, setBlocks] = useState<Block[]>([
+    { id: "initial", type: "text", content: "" },
+  ]);
 
   if (!open) return null;
 
   const handleSave = () => {
     if (!title.trim()) return;
+    const subtitle = blocks.map((b) => b.content).filter(Boolean).join(" ") || "New Note";
     onSave({
       title: title.trim(),
-      subtitle: subtitle.trim() || "New Note",
+      subtitle: subtitle.slice(0, 60),
       color: NOTE_COLORS[selectedColor].var,
       category: selectedCategory || "Top Shows",
+      blocks,
     });
     setTitle("");
-    setSubtitle("");
+    setBlocks([{ id: String(Date.now()), type: "text", content: "" }]);
     setSelectedColor(0);
     setSelectedCategory(null);
     onClose();
@@ -51,7 +57,7 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-3xl bg-background shadow-2xl overflow-hidden animate-scale-in"
+        className="w-full max-w-sm rounded-3xl bg-background shadow-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -64,77 +70,78 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
           </button>
         </div>
 
-        {/* Note area */}
-        <div className="px-6 pb-4">
-          <div
-            className="rounded-2xl p-5 min-h-[180px] flex flex-col gap-2 shadow-sm"
-            style={{
-              backgroundColor: `hsl(${NOTE_COLORS[selectedColor].hsl})`,
-            }}
-          >
-            <input
-              type="text"
-              placeholder="Card title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="bg-transparent text-card-foreground font-bold text-lg placeholder:text-card-foreground/40 outline-none w-full"
-            />
-            <textarea
-              placeholder="Add text to this note"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              className="bg-transparent text-card-foreground/70 text-sm placeholder:text-card-foreground/40 outline-none w-full flex-1 resize-none min-h-[80px]"
-            />
+        <div className="flex-1 overflow-y-auto">
+          {/* Note area with block editor */}
+          <div className="px-6 pb-4">
+            <div
+              className="rounded-2xl p-5 min-h-[220px] flex flex-col gap-2 shadow-sm"
+              style={{
+                backgroundColor: `hsl(${NOTE_COLORS[selectedColor].hsl})`,
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Card title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="bg-transparent text-card-foreground font-bold text-lg placeholder:text-card-foreground/40 outline-none w-full"
+              />
+              <BlockEditor
+                blocks={blocks}
+                onChange={setBlocks}
+                accentColor={NOTE_COLORS[selectedColor].hsl}
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Note color */}
-        <div className="px-6 pb-3">
-          <p className="text-xs text-muted-foreground mb-2">Note color</p>
-          <div className="flex gap-2">
-            {NOTE_COLORS.map((c, i) => (
-              <button
-                key={c.name}
-                onClick={() => setSelectedColor(i)}
-                className="w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center"
-                style={{
-                  backgroundColor: `hsl(${c.hsl})`,
-                  borderColor:
-                    i === selectedColor
-                      ? "hsl(var(--foreground))"
-                      : "transparent",
-                }}
-              >
-                {i === selectedColor && (
-                  <Check className="w-3 h-3 text-card-foreground" />
-                )}
-              </button>
-            ))}
+          {/* Note color */}
+          <div className="px-6 pb-3">
+            <p className="text-xs text-muted-foreground mb-2">Note color</p>
+            <div className="flex gap-2">
+              {NOTE_COLORS.map((c, i) => (
+                <button
+                  key={c.name}
+                  onClick={() => setSelectedColor(i)}
+                  className="w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center"
+                  style={{
+                    backgroundColor: `hsl(${c.hsl})`,
+                    borderColor:
+                      i === selectedColor
+                        ? "hsl(var(--foreground))"
+                        : "transparent",
+                  }}
+                >
+                  {i === selectedColor && (
+                    <Check className="w-3 h-3 text-card-foreground" />
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Category */}
-        <div className="px-6 pb-3">
-          <p className="text-xs text-muted-foreground mb-2">Category</p>
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  selectedCategory === cat
-                    ? "bg-foreground text-primary-foreground border-foreground"
-                    : "bg-muted text-muted-foreground border-border"
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+          {/* Category */}
+          <div className="px-6 pb-3">
+            <p className="text-xs text-muted-foreground mb-2">Category</p>
+            <div className="flex gap-2 flex-wrap">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    selectedCategory === cat
+                      ? "bg-foreground text-primary-foreground border-foreground"
+                      : "bg-muted text-muted-foreground border-border"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Bottom actions */}
-        <div className="px-6 pb-5 pt-2 flex items-center justify-between gap-2">
+        <div className="px-6 pb-5 pt-2 flex items-center justify-between gap-2 border-t border-border">
           <button className="flex flex-col items-center gap-1 px-3 py-2 rounded-xl bg-muted flex-1">
             <Link2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-[10px] text-muted-foreground">Copy link</span>
