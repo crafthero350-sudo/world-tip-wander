@@ -14,10 +14,12 @@ const SwipeableCard = ({
   card,
   onDelete,
   onToggleSave,
+  tall,
 }: {
   card: InsightCardData;
   onDelete: (card: InsightCardData) => void;
   onToggleSave: (card: InsightCardData) => void;
+  tall?: boolean;
 }) => {
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
@@ -36,7 +38,6 @@ const SwipeableCard = ({
     if (!swiping) return;
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
-    // Lock direction on first significant move
     if (!locked.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
       locked.current = true;
       if (Math.abs(dy) > Math.abs(dx)) {
@@ -62,17 +63,15 @@ const SwipeableCard = ({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
-      {/* Delete background */}
+    <div className={`relative overflow-hidden rounded-2xl ${tall ? "row-span-2" : ""}`}>
       <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive rounded-2xl">
         <button onClick={handleDelete} className="flex flex-col items-center gap-1">
           <Trash2 className="w-5 h-5 text-destructive-foreground" />
           <span className="text-[10px] text-destructive-foreground font-medium">Delete</span>
         </button>
       </div>
-      {/* Card content */}
       <div
-        className="relative z-10"
+        className="relative z-10 h-full"
         style={{
           transform: `translateX(${offsetX}px)`,
           transition: swiping ? "none" : "transform 0.3s ease-out",
@@ -100,14 +99,14 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <div className="px-5 pt-6 pb-3 flex items-center gap-3">
+      <div className="px-5 pt-6 pb-2 flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-full bg-muted">
           <ChevronLeft className="w-4 h-4 text-foreground" />
         </button>
         <div className="flex-1 text-center">
-          <h1 className="text-lg font-bold text-foreground">My Collection</h1>
-          <p className="text-xs text-muted-foreground">
-            {savedCards.length} card{savedCards.length !== 1 ? "s" : ""}
+          <h1 className="text-lg font-bold text-foreground">Insight Board</h1>
+          <p className="text-[11px] text-muted-foreground">
+            {savedCards.length} item{savedCards.length !== 1 ? "s" : ""}
           </p>
         </div>
         <button onClick={onAddNew} className="p-2 rounded-full bg-muted">
@@ -115,25 +114,8 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
         </button>
       </div>
 
-      {/* Search bar */}
-      <div className="px-5 pb-3">
-        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
-          <Search className="w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search cards..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
-          />
-          <button className="p-1">
-            <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-          </button>
-        </div>
-      </div>
-
-      {/* Cards grid */}
-      <div className="flex-1 overflow-y-auto px-5 pb-24">
+      {/* Cards masonry grid */}
+      <div className="flex-1 overflow-y-auto px-4 pb-24 pt-2">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
@@ -146,17 +128,38 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map((card) => (
+          <div className="grid grid-cols-2 gap-3 auto-rows-auto">
+            {filtered.map((card, i) => (
               <SwipeableCard
                 key={card.id}
                 card={card}
                 onDelete={(c) => onToggleSave(c)}
                 onToggleSave={onToggleSave}
+                tall={i % 3 === 0}
               />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Bottom search bar — matches reference */}
+      <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 flex items-center gap-2">
+        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5 flex-1">
+          <Search className="w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="I need..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none flex-1"
+          />
+        </div>
+        <button className="p-2.5 rounded-xl bg-muted">
+          <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button onClick={onAddNew} className="p-2.5 rounded-xl bg-muted">
+          <Plus className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
     </div>
   );
