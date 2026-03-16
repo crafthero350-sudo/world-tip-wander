@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Bookmark, BookmarkCheck, ImagePlus } from "lucide-react";
 import { playOpenSound, playCloseSound, playNavSound, playSaveSound } from "@/lib/sounds";
 
