@@ -59,11 +59,13 @@ const ShapeIcon = ({ shape, color }: { shape: string; color: string }) => {
 
 interface Props {
   card: InsightCardData;
+  isSaved?: boolean;
+  onToggleSave?: (card: InsightCardData) => void;
 }
 
-const InsightCard = ({ card }: Props) => {
+const InsightCard = ({ card, isSaved, onToggleSave }: Props) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const saved = isSaved ?? false;
   const [tipIndex, setTipIndex] = useState(0);
 
   if (isOpen) {
@@ -77,7 +79,7 @@ const InsightCard = ({ card }: Props) => {
           <button onClick={() => setIsOpen(false)} className="absolute top-4 right-4 p-1 rounded-full bg-foreground/10">
             <X className="w-5 h-5 text-card-foreground" />
           </button>
-          <button onClick={() => setSaved(!saved)} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
+          <button onClick={() => onToggleSave?.(card)} className="absolute top-4 right-14 p-1 rounded-full bg-foreground/10">
             {saved ? <BookmarkCheck className="w-5 h-5 text-card-foreground" /> : <Bookmark className="w-5 h-5 text-card-foreground" />}
           </button>
 
