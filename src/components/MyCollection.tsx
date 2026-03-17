@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
-import { Search, Plus, ChevronLeft, ArrowUpDown, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { Search, Plus, ChevronLeft, ArrowUpDown, Trash2, Share, Heart } from "lucide-react";
 import InsightCard, { type InsightCardData } from "@/components/InsightCard";
 import { playDeleteSound } from "@/lib/sounds";
 
@@ -10,7 +11,7 @@ interface MyCollectionProps {
   onToggleSave: (card: InsightCardData) => void;
 }
 
-const SwipeableCard = ({
+const LongPressCard = ({
   card,
   onDelete,
   onToggleSave,
@@ -21,67 +22,73 @@ const SwipeableCard = ({
   onToggleSave: (card: InsightCardData) => void;
   tall?: boolean;
 }) => {
-  const [offsetX, setOffsetX] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const locked = useRef(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-    locked.current = false;
-    setSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!swiping) return;
-    const dx = e.touches[0].clientX - startX.current;
-    const dy = e.touches[0].clientY - startY.current;
-    if (!locked.current && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
-      locked.current = true;
-      if (Math.abs(dy) > Math.abs(dx)) {
-        setSwiping(false);
-        return;
-      }
-    }
-    if (dx < 0) setOffsetX(dx);
-  };
-
-  const handleTouchEnd = () => {
-    setSwiping(false);
-    if (offsetX < -80) {
-      setOffsetX(-120);
-    } else {
-      setOffsetX(0);
-    }
+  const handleContextMenu = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    setMenuOpen(true);
   };
 
   const handleDelete = () => {
     playDeleteSound();
     onDelete(card);
+    setMenuOpen(false);
   };
 
   return (
-    <div className={`relative overflow-hidden rounded-2xl ${tall ? "row-span-2" : ""}`}>
-      <div className="absolute inset-0 flex items-center justify-end pr-4 bg-destructive rounded-2xl">
-        <button onClick={handleDelete} className="flex flex-col items-center gap-1">
-          <Trash2 className="w-5 h-5 text-destructive-foreground" />
-          <span className="text-[10px] text-destructive-foreground font-medium">Delete</span>
-        </button>
-      </div>
-      <div
-        className="relative z-10 h-full"
-        style={{
-          transform: `translateX(${offsetX}px)`,
-          transition: swiping ? "none" : "transform 0.3s ease-out",
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
+    <div className={`relative rounded-2xl ${tall ? "row-span-2" : ""}`}>
+      <div onContextMenu={handleContextMenu}>
         <InsightCard card={card} isSaved={true} onToggleSave={onToggleSave} />
       </div>
+
+      {menuOpen &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            onClick={() => setMenuOpen(false)}
+          >
+            <div
+              className="flex flex-col items-center gap-3 w-[260px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Card preview */}
+              <div className="w-full rounded-2xl overflow-hidden shadow-xl pointer-events-none scale-95">
+                <InsightCard card={card} isSaved={true} onToggleSave={() => {}} />
+              </div>
+
+              {/* Menu options */}
+              <div className="w-full rounded-2xl bg-popover overflow-hidden shadow-xl">
+                <button
+                  onClick={() => setMenuOpen(false)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm text-popover-foreground active:bg-muted transition-colors"
+                >
+                  <span>Share</span>
+                  <Share className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <div className="h-px bg-border mx-2" />
+                <button
+                  onClick={() => {
+                    onToggleSave(card);
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm text-popover-foreground active:bg-muted transition-colors"
+                >
+                  <span>Love</span>
+                  <Heart className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <div className="h-px bg-border mx-2" />
+                <button
+                  onClick={handleDelete}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm text-destructive active:bg-muted transition-colors"
+                >
+                  <span>Delete</span>
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -130,7 +137,7 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
         ) : (
           <div className="grid grid-cols-2 gap-3 auto-rows-auto">
             {filtered.map((card, i) => (
-              <SwipeableCard
+              <LongPressCard
                 key={card.id}
                 card={card}
                 onDelete={(c) => onToggleSave(c)}
@@ -142,7 +149,7 @@ const MyCollection = ({ savedCards, onBack, onAddNew, onToggleSave }: MyCollecti
         )}
       </div>
 
-      {/* Bottom search bar — matches reference */}
+      {/* Bottom search bar */}
       <div className="absolute bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 flex items-center gap-2">
         <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5 flex-1">
           <Search className="w-4 h-4 text-muted-foreground" />
