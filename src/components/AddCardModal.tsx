@@ -1,16 +1,22 @@
 import { useState } from "react";
-import { ChevronLeft, X, Link2, Share2, PenLine, Check } from "lucide-react";
+import { ChevronLeft, Settings, Link2, Share2, PenLine, Check } from "lucide-react";
 import BlockEditor, { type Block } from "./BlockEditor";
 
 const NOTE_COLORS = [
-  { name: "yellow", hsl: "52 100% 70%", var: "card-yellow" },
-  { name: "mint", hsl: "160 45% 78%", var: "card-mint" },
-  { name: "lavender", hsl: "245 60% 82%", var: "card-lavender" },
-  { name: "pink", hsl: "320 60% 82%", var: "card-pink" },
-  { name: "sky", hsl: "195 70% 78%", var: "card-sky" },
+  { name: "coral", hsl: "15 80% 65%", var: "card-yellow" },
+  { name: "yellow", hsl: "48 100% 76%", var: "card-yellow" },
+  { name: "green", hsl: "145 50% 62%", var: "card-mint" },
+  { name: "blue", hsl: "210 60% 70%", var: "card-sky" },
+  { name: "purple", hsl: "270 55% 72%", var: "card-lavender" },
 ];
 
-const CATEGORIES = ["Wellness", "Culture", "Comedy", "Top Shows"];
+const CATEGORIES = ["Groceries", "Party Supplies", "Household Items"];
+
+const COLLABORATORS = [
+  { name: "Ethan Caldwell", color: "hsl(270 55% 72%)" },
+  { name: "Liam Foster", color: "hsl(320 60% 75%)" },
+  { name: "Sophie", color: "hsl(145 50% 62%)" },
+];
 
 interface AddCardModalProps {
   open: boolean;
@@ -26,7 +32,7 @@ interface AddCardModalProps {
 
 const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
   const [title, setTitle] = useState("");
-  const [selectedColor, setSelectedColor] = useState(0);
+  const [selectedColor, setSelectedColor] = useState(1); // yellow default
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [blocks, setBlocks] = useState<Block[]>([
     { id: "initial", type: "text", content: "" },
@@ -41,12 +47,12 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
       title: title.trim(),
       subtitle: subtitle.slice(0, 60),
       color: NOTE_COLORS[selectedColor].var,
-      category: selectedCategory || "Top Shows",
+      category: selectedCategory || "Groceries",
       blocks,
     });
     setTitle("");
     setBlocks([{ id: String(Date.now()), type: "text", content: "" }]);
-    setSelectedColor(0);
+    setSelectedColor(1);
     setSelectedCategory(null);
     onClose();
   };
@@ -62,12 +68,17 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
-          <button onClick={onClose} className="p-2 rounded-full bg-muted">
-            <ChevronLeft className="w-4 h-4 text-foreground" />
-          </button>
-          <button onClick={onClose} className="p-2 rounded-full bg-muted">
-            <X className="w-4 h-4 text-foreground" />
-          </button>
+          <div className="flex items-center gap-1 bg-[hsl(145_50%_62%)] rounded-lg px-2 py-1.5">
+            <button onClick={onClose} className="p-0.5">
+              <ChevronLeft className="w-4 h-4 text-white" />
+            </button>
+            <div className="w-px h-4 bg-white/30" />
+            <button className="p-0.5">
+              <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 3l14 9-14 9V3z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -81,10 +92,10 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
             >
               <input
                 type="text"
-                placeholder="Card title"
+                placeholder="Add text to this note"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="bg-transparent text-card-foreground font-bold text-lg placeholder:text-card-foreground/40 outline-none w-full"
+                className="bg-transparent text-card-foreground/70 font-medium text-sm placeholder:text-card-foreground/40 outline-none w-full"
               />
               <BlockEditor
                 blocks={blocks}
@@ -95,34 +106,33 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
           </div>
 
           {/* Note color */}
-          <div className="px-6 pb-3">
+          <div className="px-6 pb-4">
             <p className="text-xs text-muted-foreground mb-2">Note color</p>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               {NOTE_COLORS.map((c, i) => (
                 <button
                   key={c.name}
                   onClick={() => setSelectedColor(i)}
-                  className="w-7 h-7 rounded-full border-2 transition-all flex items-center justify-center"
+                  className="w-7 h-7 rounded-full transition-all flex items-center justify-center"
                   style={{
                     backgroundColor: `hsl(${c.hsl})`,
-                    borderColor:
+                    boxShadow:
                       i === selectedColor
-                        ? "hsl(var(--foreground))"
-                        : "transparent",
+                        ? `0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(${c.hsl})`
+                        : "none",
                   }}
-                >
-                  {i === selectedColor && (
-                    <Check className="w-3 h-3 text-card-foreground" />
-                  )}
-                </button>
+                />
               ))}
             </div>
           </div>
 
           {/* Category */}
-          <div className="px-6 pb-3">
+          <div className="px-6 pb-4">
             <p className="text-xs text-muted-foreground mb-2">Category</p>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              <button className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
+                <Settings className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
               {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
@@ -135,6 +145,25 @@ const AddCardModal = ({ open, onClose, onSave }: AddCardModalProps) => {
                 >
                   {cat}
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Collaboration */}
+          <div className="px-6 pb-4">
+            <p className="text-xs text-muted-foreground mb-2">Collaboration</p>
+            <div className="flex gap-2 flex-wrap">
+              {COLLABORATORS.map((person) => (
+                <div
+                  key={person.name}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border"
+                >
+                  <div
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: person.color }}
+                  />
+                  <span className="text-xs font-medium text-foreground">{person.name}</span>
+                </div>
               ))}
             </div>
           </div>
